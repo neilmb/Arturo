@@ -7,6 +7,7 @@ import pickle
 import platform
 import hashlib
 import re
+import shutil
 
 try:
     from collections import OrderedDict
@@ -93,21 +94,33 @@ class Environment(dict):
     default_board_model = 'uno'
     ano = sys.argv[0]
 
+    def __init__(self):
+        super(Environment, self).__init__()
+        self['__ano_objectVersion__'] = 3;
+        
     def dump(self):
         if not os.path.isdir(self.output_dir):
             return
         with open(self.dump_filepath, 'wb') as f:
-            pickle.dump(self.items(), f)
+            pickle.dump(self.items(), f, pickle.HIGHEST_PROTOCOL)
 
     def load(self):
         if not os.path.exists(self.dump_filepath):
             return
+        needToResetPickle = False
         with open(self.dump_filepath, 'rb') as f:
             try:
-                self.update(pickle.load(f))
+                unjarred = dict(pickle.load(f))
+                if unjarred['__ano_objectVersion__'] != self['__ano_objectVersion__']:
+                    needToResetPickle = True
+                else:
+                    self.update(unjarred)
             except:
-                print colorize('Environment dump exists (%s), but failed to load' % 
-                               self.dump_filepath, 'yellow')
+                needToResetPickle = True
+
+        if needToResetPickle:
+            if os.path.isdir(self.output_dir):
+                shutil.rmtree(self.output_dir)
 
     @property
     def dump_filepath(self):
